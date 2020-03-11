@@ -2,27 +2,28 @@
 -- @shouldWarnWith UnusedName
 -- @shouldWarnWith UnusedName
 -- @shouldWarnWith UnusedName
+-- @shouldWarnWith UnusedName
 module Main where
 
 data X = X
 
 
 unusedInLambda :: X
-unusedInLambda = (\z -> X) X
+unusedInLambda = (\lambdaUnused -> X) X
 
 unusedLetName :: X
 unusedLetName =
-  let z = X in
+  let letUnused = X in
   X
 
 unusedWhereIsLet :: X
 unusedWhereIsLet =
   X
-  where z = X
+  where whereUnused = X
 
 unusedLetArgument :: X
 unusedLetArgument = 
-  let f x y = x
+  let f x letArgUnused = x
   in f X X
 
 notUnusedLet :: X
@@ -36,4 +37,4 @@ notUnusedLet =
 unusedCaseBinder :: X
 unusedCaseBinder = 
   case X of
-    z -> X
+    caseUnused -> X

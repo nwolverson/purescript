@@ -141,6 +141,7 @@ data SimpleErrorMessage
   | TransitiveDctorExportError DeclarationRef (ProperName 'ConstructorName)
   | ShadowedName Ident
   | UnusedName Ident
+  | UnusedDeclaration Ident
   | ShadowedTypeVar Text
   | UnusedTypeVar Text
   | WildcardInferredType SourceType Context
