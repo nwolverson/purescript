@@ -150,6 +150,8 @@ errorCode em = case unwrapErrorMessage em of
   TransitiveExportError{} -> "TransitiveExportError"
   TransitiveDctorExportError{} -> "TransitiveDctorExportError"
   ShadowedName{} -> "ShadowedName"
+  UnusedName{} -> "UnusedName"
+  UnusedDeclaration{} -> "UnusedDeclaration"
   ShadowedTypeVar{} -> "ShadowedTypeVar"
   UnusedTypeVar{} -> "UnusedTypeVar"
   WildcardInferredType{} -> "WildcardInferredType"
@@ -842,6 +844,10 @@ prettyPrintSingleError (PPEOptions codeColor full level showDocs relPath) e = fl
       line $ "Name " <> markCode (showIdent nm) <> " was shadowed."
     renderSimpleErrorMessage (ShadowedTypeVar tv) =
       line $ "Type variable " <> markCode tv <> " was shadowed."
+    renderSimpleErrorMessage (UnusedName nm) =
+      line $ "Name " <> markCode (showIdent nm) <> " was introduced but not used."
+    renderSimpleErrorMessage (UnusedDeclaration nm) =
+      line $ "Declaration " <> markCode (showIdent nm) <> " was not used, and is not exported."
     renderSimpleErrorMessage (UnusedTypeVar tv) =
       line $ "Type variable " <> markCode tv <> " is ambiguous, since it is unused in the polymorphic type which introduces it."
     renderSimpleErrorMessage (MisleadingEmptyTypeImport mn name) =
