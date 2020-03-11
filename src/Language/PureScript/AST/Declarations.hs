@@ -140,6 +140,7 @@ data SimpleErrorMessage
   | TransitiveExportError DeclarationRef [DeclarationRef]
   | TransitiveDctorExportError DeclarationRef (ProperName 'ConstructorName)
   | ShadowedName Ident
+  | UnusedName Ident
   | ShadowedTypeVar Text
   | UnusedTypeVar Text
   | WildcardInferredType SourceType Context

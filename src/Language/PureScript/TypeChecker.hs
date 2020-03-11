@@ -519,10 +519,11 @@ typeCheckModule
   -> m Module
 typeCheckModule (Module _ _ _ _ Nothing) =
   internalError "exports should have been elaborated before typeCheckModule"
-typeCheckModule (Module ss coms mn decls (Just exps)) =
+typeCheckModule mod@(Module ss coms mn decls (Just exps)) =
   warnAndRethrow (addHint (ErrorInModule mn)) $ do
     modify (\s -> s { checkCurrentModule = Just mn })
     decls' <- typeCheckAll mn exps decls
+    checkUnused mod
     checkSuperClassesAreExported <- getSuperClassExportCheck
     for_ exps $ \e -> do
       checkTypesAreExported e

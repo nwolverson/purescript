@@ -150,6 +150,7 @@ errorCode em = case unwrapErrorMessage em of
   TransitiveExportError{} -> "TransitiveExportError"
   TransitiveDctorExportError{} -> "TransitiveDctorExportError"
   ShadowedName{} -> "ShadowedName"
+  UnusedName{} -> "UnusedName"
   ShadowedTypeVar{} -> "ShadowedTypeVar"
   UnusedTypeVar{} -> "UnusedTypeVar"
   WildcardInferredType{} -> "WildcardInferredType"
@@ -840,6 +841,8 @@ prettyPrintSingleError (PPEOptions codeColor full level showDocs relPath) e = fl
             ]
     renderSimpleErrorMessage (ShadowedName nm) =
       line $ "Name " <> markCode (showIdent nm) <> " was shadowed."
+    renderSimpleErrorMessage (UnusedName nm) =
+      line $ "Name " <> markCode (showIdent nm) <> " was introduced but not used."
     renderSimpleErrorMessage (ShadowedTypeVar tv) =
       line $ "Type variable " <> markCode tv <> " was shadowed."
     renderSimpleErrorMessage (UnusedTypeVar tv) =
