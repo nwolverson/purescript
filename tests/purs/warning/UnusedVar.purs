@@ -38,3 +38,10 @@ unusedCaseBinder :: X
 unusedCaseBinder = 
   case X of
     caseUnused -> X
+
+unusedObjUpdate :: { foo :: X }
+unusedObjUpdate = 
+  let x = X
+      obj = { foo: X }
+  in
+  obj { foo = x }

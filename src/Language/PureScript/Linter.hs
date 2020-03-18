@@ -178,7 +178,7 @@ lintUnused (Module modSS _ mn modDecls exports) =
 
     go :: SourceSpan -> Expr -> (S.Set Ident, MultipleErrors)
     go _ (Var _ (Qualified Nothing v)) = (S.singleton v, mempty)
-    go _ (Var _ qident) = (S.empty, mempty)
+    go _ (Var _ _) = (S.empty, mempty)
 
     go ss (Let _ ds e) =
       let letNames = S.fromList $ mapMaybe (fmap valdeclIdent . getValueDeclaration) ds
@@ -194,9 +194,12 @@ lintUnused (Module modSS _ mn modDecls exports) =
     go ss (TypeClassDictionaryConstructorApp _ v1) = go ss v1
     go ss (Accessor _ v1) = go ss v1
     
-    -- -- TODO 
-    -- -- go ss unused (ObjectUpdate obj vs) = foldl (<>.) (g'' s obj) (fmap (g'' s . snd) vs)
-    -- -- go ss unused (ObjectUpdateNested obj vs) = foldl (<>.) (g'' s obj) (fmap (g'' s) vs)
+    go ss (ObjectUpdate obj vs) = go ss obj `combine` foldr1 combine (map (go ss . snd) vs)
+    go ss (ObjectUpdateNested obj vs) = go ss obj `combine` goTree vs
+      where
+        goTree (PathTree tree) = foldr1 combine $ map (goNode . snd) (runAssocList tree)
+        goNode (Leaf val) = go ss val
+        goNode (Branch val) = goTree val
   
     go ss (App v1 v2) = go ss v1 `combine` go ss v2
     go ss (Unused v) = go ss v
