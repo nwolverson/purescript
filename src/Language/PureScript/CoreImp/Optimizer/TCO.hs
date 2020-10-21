@@ -28,14 +28,27 @@ tco = everywhere convert where
   tcoResult = "$tco_result"
 
   convert :: AST -> AST
-  convert (VariableIntroduction ss name (Just fn@Function {}))
+  convert (VariableIntroduction ss name (Just (p, unwrapIife -> (rewrapIife, fn@Function {}))))
       | isTailRecursive name body'
-      = VariableIntroduction ss name (Just (replace (toLoop name outerArgs innerArgs body')))
+      = VariableIntroduction ss name (Just (p, rewrapIife . replace $ toLoop name outerArgs innerArgs body'))
     where
       innerArgs = headDef [] argss
       outerArgs = concat . reverse $ tailSafe argss
       (argss, body', replace) = collectAllFunctionArgs [] id fn
   convert js = js
+
+  unwrapIife :: AST -> (AST -> AST, AST)
+  unwrapIife (App s1 (Function s2 ident args (unwrapPureVars -> (rewrapPureVars, Return s3 value))) []) =
+    (\value' -> App s1 (Function s2 ident args (rewrapPureVars (Return s3 value'))) [], value)
+  unwrapIife js = (id, js)
+
+  unwrapPureVars :: AST -> (AST -> AST, AST)
+  unwrapPureVars js@(Block ss xs) = go id xs
+    where
+      go f [x] = (\x' -> Block ss (f [x']), x)
+      go f (v@(VariableIntroduction _ _ (Just (IsPure, _))) : xs') = go (f . (v :)) xs'
+      go _ _ = (id, js)
+  unwrapPureVars js = (id, js)
 
   collectAllFunctionArgs :: [[Text]] -> (AST -> AST) -> AST -> ([[Text]], AST, AST -> AST)
   collectAllFunctionArgs allArgs f (Function s1 ident args (Block s2 (body@(Return _ _):_))) =
@@ -73,7 +86,7 @@ tco = everywhere convert where
     allInTailPosition (ReturnNoResult _)
       = True
     allInTailPosition (VariableIntroduction _ _ js1)
-      = all ((== 0) . countSelfReferences) js1
+      = all ((== 0) . countSelfReferences . snd) js1
     allInTailPosition (Assignment _ _ js1)
       = countSelfReferences js1 == 0
     allInTailPosition (Comment _ _ js1)
@@ -84,8 +97,8 @@ tco = everywhere convert where
   toLoop :: Text -> [Text] -> [Text] -> AST -> AST
   toLoop ident outerArgs innerArgs js =
       Block rootSS $
-        map (\arg -> VariableIntroduction rootSS (tcoVar arg) (Just (Var rootSS (copyVar arg)))) outerArgs ++
-        [ VariableIntroduction rootSS tcoDone (Just (BooleanLiteral rootSS False))
+        map (\arg -> VariableIntroduction rootSS (tcoVar arg) (Just (UnknownPurity, Var rootSS (copyVar arg)))) outerArgs ++
+        [ VariableIntroduction rootSS tcoDone (Just (UnknownPurity, BooleanLiteral rootSS False))
         , VariableIntroduction rootSS tcoResult Nothing
         , Function rootSS (Just tcoLoop) (outerArgs ++ innerArgs) (Block rootSS [loopify js])
         , While rootSS (Unary rootSS Not (Var rootSS tcoDone))
