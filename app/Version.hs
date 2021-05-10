@@ -7,6 +7,8 @@ import Prelude
 
 import Data.Version (showVersion)
 import Paths_purescript as Paths
+import Language.Haskell.TH.Env
+import Data.Maybe (fromMaybe)
 
 #ifndef RELEASE
 import qualified Development.GitRev as GitRev
@@ -25,7 +27,8 @@ versionString = showVersion Paths.version ++ prerelease ++ extra
 #ifdef RELEASE
   extra = ""
 #else
-  extra = " [development build; commit: " ++ $(GitRev.gitHash) ++ dirty ++ "]"
+  extra = " [development build; commit: " ++ commitRef ++ "]"
+  commitRef = fromMaybe ($(GitRev.gitHash) ++ dirty) $$(envQ "PURESCRIPT_COMMIT_REF")
   dirty
     | $(GitRev.gitDirty) = " DIRTY"
     | otherwise = ""
