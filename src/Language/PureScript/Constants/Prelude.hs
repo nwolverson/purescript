@@ -113,6 +113,9 @@ zshr = "zshr"
 complement :: forall a. (IsString a) => a
 complement = "complement"
 
+identity :: forall a. (IsString a) => a
+identity = "identity"
+
 -- Prelude Values
 
 zero :: forall a. (IsString a) => a
@@ -265,6 +268,9 @@ semigroupString = "semigroupString"
 semigroupoidFn :: forall a. (IsString a) => a
 semigroupoidFn = "semigroupoidFn"
 
+categoryFn :: forall a. (IsString a) => a
+categoryFn = "categoryFn"
+
 -- Data.Symbol
 
 pattern DataSymbol :: ModuleName
@@ -296,6 +302,9 @@ pattern ControlBind = ModuleName "Control.Bind"
 
 controlBind :: forall a. (IsString a) => a
 controlBind = "Control_Bind"
+
+controlCategory :: forall a. (IsString a) => a
+controlCategory = "Control_Category"
 
 controlMonadEffUncurried :: forall a. (IsString a) => a
 controlMonadEffUncurried = "Control_Monad_Eff_Uncurried"
