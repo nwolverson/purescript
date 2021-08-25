@@ -110,7 +110,7 @@ inlineCommonValues expander = everywhere convert
   intOp ss op x y = Binary ss BitwiseOr (Binary ss op x y) (NumericLiteral ss (Left 0))
 
 inlineCommonOperators :: (AST -> AST) -> AST -> AST
-inlineCommonOperators expander = everywhereTopDown . applyAll $
+inlineCommonOperators expander = everywhereTopDown $ applyAll $
   [ binary semiringNumber opAdd Add
   , binary semiringNumber opMul Multiply
 

@@ -34,9 +34,9 @@ tco = flip evalState 0 . everywhereTopDownM convert where
   tcoResult = "$tco_result"
 
   convert :: AST -> State Int AST
-  convert (VariableIntroduction ss name (Just (p, unwrapIife -> (rewrapIife, fn@Function {}))))
+  convert (VariableIntroduction ss name (Just (p, fn@Function {})))
       | Just trFns <- findTailRecursiveFns name arity body'
-      = VariableIntroduction ss name . Just . (p,) . rewrapIife . replace <$> toLoop trFns name arity outerArgs innerArgs body'
+      = VariableIntroduction ss name . Just . (p,) . replace <$> toLoop trFns name arity outerArgs innerArgs body'
     where
       innerArgs = headDef [] argss
       outerArgs = concat . reverse $ tailSafe argss
@@ -45,19 +45,6 @@ tco = flip evalState 0 . everywhereTopDownM convert where
       -- ever a practical difference.
       (argss, body', replace) = topCollectAllFunctionArgs [] id fn
   convert js = pure js
-
-  unwrapIife :: AST -> (AST -> AST, AST)
-  unwrapIife (App s1 (Function s2 ident args (unwrapPureVars -> (rewrapPureVars, Return s3 value))) []) =
-    (\value' -> App s1 (Function s2 ident args (rewrapPureVars (Return s3 value'))) [], value)
-  unwrapIife js = (id, js)
-
-  unwrapPureVars :: AST -> (AST -> AST, AST)
-  unwrapPureVars js@(Block ss xs) = go id xs
-    where
-      go f [x] = (\x' -> Block ss (f [x']), x)
-      go f (v@(VariableIntroduction _ _ (Just (IsPure, _))) : xs') = go (f . (v :)) xs'
-      go _ _ = (id, js)
-  unwrapPureVars js = (id, js)
 
   rewriteFunctionsWith :: ([Text] -> [Text]) -> [[Text]] -> (AST -> AST) -> AST -> ([[Text]], AST, AST -> AST)
   rewriteFunctionsWith argMapper = collectAllFunctionArgs
