@@ -72,6 +72,7 @@ data ProgressMessage
   = CompilingModule ModuleName (Maybe (Int, Int))
   -- ^ Compilation started for the specified module
   | SkippingModule ModuleName (Maybe (Int, Int))
+  | NotSkippingModule ModuleName T.Text (Maybe (Int, Int))
   deriving (Show, Eq, Ord)
 
 -- | Render a progress message
@@ -90,6 +91,15 @@ renderProgressMessage infx msg = case msg of
       , "Skipping "
       , infx
       , runModuleName mn
+      ]
+  NotSkippingModule mn reason mi ->
+    T.concat
+      [renderProgressIndex mi
+      , "Not Skipping "
+      , infx
+      , runModuleName mn
+      , " - "
+      , reason
       ]
   where
   renderProgressIndex :: Maybe (Int, Int) -> T.Text

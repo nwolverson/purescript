@@ -46,7 +46,7 @@ import Language.PureScript.Sugar (Env, collapseBindingGroups, createBindingGroup
 import Language.PureScript.TypeChecker (CheckState(..), emptyCheckState, typeCheckModule)
 import Language.PureScript.Make.BuildPlan (BuildJobResult(..), BuildPlan(..), getResult, isUpToDate)
 import Language.PureScript.Make.BuildPlan qualified as BuildPlan
-import Language.PureScript.Make.ExternsDiff (checkDiffs, emptyDiff, diffExterns)
+import Language.PureScript.Make.ExternsDiff (checkDiffs,checkDiffsNWDEbug, emptyDiff, diffExterns)
 import Language.PureScript.Make.Cache qualified as Cache
 import Language.PureScript.Make.Actions as Actions
 import Language.PureScript.Make.Monad as Monad
@@ -319,7 +319,27 @@ make' MakeOptions{..} ma@MakeActions{..} ms = do
                     pure $ Just (exts, MultipleErrors [], Just (emptyDiff moduleName))
                   else
                     pure Nothing
-                | otherwise = pure Nothing
+                | Nothing <- prevResult = do
+                    progress $ NotSkippingModule moduleName "Rebuild" moduleIndex
+                    pure Nothing
+                    
+                | Just (status, _exts) <- prevResult = do
+                    if not (isUpToDate status) then
+                      progress $ NotSkippingModule moduleName "Outdated" moduleIndex
+                    else 
+                      let debugDiffs = checkDiffsNWDEbug m <$> depsDiffs 
+                      in
+                      case debugDiffs of
+                        Nothing -> 
+                          progress $ NotSkippingModule moduleName "depsDiff=Nothing" moduleIndex
+                        Just Nothing ->
+                          progress $ NotSkippingModule moduleName "Removed ref" moduleIndex
+                        Just (Just []) ->
+                          progress $ NotSkippingModule moduleName "Other" moduleIndex
+                        Just (Just mods) ->
+                          progress $ NotSkippingModule moduleName ("Deps changed: " <>  T.pack (show mods)) moduleIndex      
+                    
+                    pure Nothing
 
           -- We need to ensure that all dependencies have been included in Env.
           C.modifyMVar_ (bpEnv buildPlan) $ \env -> do

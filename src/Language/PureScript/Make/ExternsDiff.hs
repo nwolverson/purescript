@@ -3,6 +3,7 @@ module Language.PureScript.Make.ExternsDiff
   , emptyDiff
   , diffExterns
   , checkDiffs
+  , checkDiffsNWDEbug
   ) where
 
 import Protolude hiding (check, moduleName, trace)
@@ -224,6 +225,22 @@ diffExterns newExts oldExts depsDiffs =
     affectedLocalRefs =
       M.fromSet (const Updated) $ getAffectedLocal modName diffsMapWithLocal unchangedRefs
 
+
+
+checkDiffsNWDEbug :: P.Module -> [ExternsDiff] -> Maybe [P.ModuleName]
+checkDiffsNWDEbug (P.Module _ _ _ decls exports) diffs
+  | all isEmpty diffs = Just []
+  | isNothing mbSearch = Nothing
+  | null searches = Just []
+  | otherwise = Just $ checkReExports <> checkUsageNWDEbug searches decls
+  where
+    mbSearch = makeSearches decls diffs
+    searches = fromMaybe S.empty mbSearch
+    -- Check if the module reexports any of searched refs.
+    checkReExports = flip (maybe []) exports $ concatMap $ \case
+      P.ModuleRef _ mn -> mapMaybe fst $ S.toList $ S.filter ((== Just mn) . fst) searches
+      _ -> []
+
 checkDiffs :: P.Module -> [ExternsDiff] -> Bool
 checkDiffs (P.Module _ _ _ decls exports) diffs
   | all isEmpty diffs = False
@@ -237,6 +254,76 @@ checkDiffs (P.Module _ _ _ decls exports) diffs
     checkReExports = flip (maybe False) exports $ any $ \case
       P.ModuleRef _ mn -> not . null $ S.filter ((== Just mn) . fst) searches
       _ -> False
+
+-- Goes though the module and try to find any usage of the refs.
+checkUsageNWDEbug :: Set (Maybe ModuleName, Ref) -> [P.Declaration] -> [P.ModuleName]
+checkUsageNWDEbug searches decls = foldMap findUsage decls
+  where
+    findUsage decl =
+      let (extr, _, _, _, _) = P.everythingWithScope goDecl goExpr goBinder mempty mempty
+       in extr mempty decl
+
+    toSearched = (,) <$> P.getQual <*> P.disqualify
+
+    -- To check data constructors we remove an origin type from it.
+    emptyName = P.ProperName ""
+    stripCtorType (ConstructorRef _ n) = ConstructorRef emptyName n
+    stripCtorType x = x
+
+    searches' = S.map (map stripCtorType) searches
+    check z = if S.member (toSearched z) searches' then
+      catMaybes [ fst $ toSearched z ] else [ ]
+
+    checkType = check . map TypeRef
+    checkTypeOp = check . map TypeOpRef
+    checkValue = check . map ValueRef
+    checkValueOp = check . map ValueOpRef
+    checkCtor = check . map (ConstructorRef emptyName)
+    checkClass = check . map TypeClassRef
+
+    onTypes = P.everythingOnTypes (<>) $ \case
+      P.TypeConstructor _ n -> checkType n
+      P.TypeOp _ n -> checkTypeOp n
+      P.ConstrainedType _ c _ -> checkClass (P.constraintClass c)
+      _ -> mempty
+
+    foldCtor f (P.DataConstructorDeclaration _ _ vars) =
+      foldMap (f . snd) vars
+
+    constraintTypes =
+      foldMap (\c -> P.constraintArgs c <> P.constraintKindArgs c)
+
+    goDecl _ = \case
+      P.TypeDeclaration t -> onTypes (P.tydeclType t)
+      P.DataDeclaration _ _ _ _ ctors -> foldMap (foldCtor onTypes) ctors
+      P.TypeSynonymDeclaration _ _ _ t -> onTypes t
+      P.KindDeclaration _ _ _ t -> onTypes t
+      P.FixityDeclaration _ (Right (P.TypeFixity _ tn _)) ->
+        checkType tn
+      P.FixityDeclaration _ (Left (P.ValueFixity _ (P.Qualified by val) _)) ->
+        either (checkValue . P.Qualified by) (checkCtor . P.Qualified by) val
+      P.TypeClassDeclaration _ _ _ cs _ _ ->
+        foldMap onTypes (constraintTypes cs)
+      P.TypeInstanceDeclaration _ _ _ _ _ cs tc sts _ ->
+        foldMap onTypes (constraintTypes cs <> sts) <> checkClass tc
+      _ -> mempty
+
+    isLocal scope ident = P.LocalIdent ident `S.member` scope
+    goExpr scope expr = case expr of
+      P.Var _ n
+        | P.isUnqualified n && isLocal scope (P.disqualify n) -> mempty
+        | otherwise -> checkValue n
+      P.Constructor _ n -> checkCtor n
+      P.Op _ n -> checkValueOp n
+      P.TypedValue _ _ t -> onTypes t
+      _ -> mempty
+
+    goBinder _ binder = case binder of
+      P.ConstructorBinder _ n _ -> checkCtor n
+      P.OpBinder _ n -> checkValueOp n
+      _ -> mempty
+
+
 
 -- Goes though the module and try to find any usage of the refs.
 checkUsage :: Set (Maybe ModuleName, Ref) -> [P.Declaration] -> Bool
